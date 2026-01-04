@@ -31,7 +31,9 @@ function Library:Create(cfg)
         rainbowarray = false,
         blurenabled = false,
         blursize = 15,
-        arrayscale = 1.0
+        arrayscale = 1.0,
+        arraypos = {ScaleX = 1, OffsetX = -10, ScaleY = 0, OffsetY = 45},
+        watermarkpos = {ScaleX = 1, OffsetX = -10, ScaleY = 0, OffsetY = 10}
     }
     
     ui.savedconfig = {}
@@ -43,11 +45,13 @@ function Library:Create(cfg)
                 if ui.savedconfig.Theme then
                     ui.settings.rgb = ui.savedconfig.Theme.RGB or ui.settings.rgb
                     ui.settings.themecolor = Color3.fromRGB(ui.settings.rgb.R, ui.settings.rgb.G, ui.settings.rgb.B)
-                    ui.settings.arraylistenabled = ui.savedconfig.Theme.ArrayListEnabled
-                    ui.settings.rainbowarray = ui.savedconfig.Theme.RainbowArrayList
-                    ui.settings.blurenabled = ui.savedconfig.Theme.BlurEnabled
+                    ui.settings.arraylistenabled = ui.savedconfig.Theme.ArrayListEnabled ~= false
+                    ui.settings.rainbowarray = ui.savedconfig.Theme.RainbowArrayList or false
+                    ui.settings.blurenabled = ui.savedconfig.Theme.BlurEnabled or false
                     ui.settings.blursize = ui.savedconfig.Theme.BlurSize or 15
                     ui.settings.arrayscale = ui.savedconfig.Theme.ArrayScale or 1.0
+                    if ui.savedconfig.Theme.ArrayPos then ui.settings.arraypos = ui.savedconfig.Theme.ArrayPos end
+                    if ui.savedconfig.Theme.WatermarkPos then ui.settings.watermarkpos = ui.savedconfig.Theme.WatermarkPos end
                 end
             end
         end)
@@ -56,6 +60,16 @@ function Library:Create(cfg)
     local function saveconfig()
         pcall(function()
             if writefile then
+                ui.savedconfig.Theme = {
+                    RGB = ui.settings.rgb,
+                    ArrayListEnabled = ui.settings.arraylistenabled,
+                    RainbowArrayList = ui.settings.rainbowarray,
+                    BlurEnabled = ui.settings.blurenabled,
+                    BlurSize = ui.settings.blursize,
+                    ArrayScale = ui.settings.arrayscale,
+                    ArrayPos = ui.settings.arraypos,
+                    WatermarkPos = ui.settings.watermarkpos
+                }
                 writefile(configname, HttpService:JSONEncode(ui.savedconfig))
             end
         end)
@@ -80,14 +94,6 @@ function Library:Create(cfg)
                 item.Object[item.Property] = ui.settings.themecolor
             end
         end
-        ui.savedconfig.Theme = {
-            RGB = ui.settings.rgb,
-            ArrayListEnabled = ui.settings.arraylistenabled,
-            RainbowArrayList = ui.settings.rainbowarray,
-            BlurEnabled = ui.settings.blurenabled,
-            BlurSize = ui.settings.blursize,
-            ArrayScale = ui.settings.arrayscale
-        }
         saveconfig()
     end
     
@@ -171,29 +177,37 @@ function Library:Create(cfg)
         TweenService:Create(notif, TweenInfo.new(0.3), {Position = UDim2.new(0, 0, 0, 0)}):Play()
         
         task.delay(duration or 3, function()
-            if notif then
+            if notif and notif.Parent then
                 TweenService:Create(notif, TweenInfo.new(0.3), {BackgroundTransparency = 1}):Play()
                 TweenService:Create(titlelbl, TweenInfo.new(0.3), {TextTransparency = 1}):Play()
                 TweenService:Create(textlbl, TweenInfo.new(0.3), {TextTransparency = 1}):Play()
                 TweenService:Create(line, TweenInfo.new(0.3), {BackgroundTransparency = 1}):Play()
                 task.wait(0.3)
-                notif:Destroy()
+                if notif and notif.Parent then notif:Destroy() end
             end
         end)
     end
     
-    local function makedraggable(frame)
+    local function makedraggable(frame, settingkey)
         local dragging = false
-        local dragstart, startpos
+        local dragstart, startpos, draginput
         
         frame.InputBegan:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 and ui.open then
+            if input.UserInputType == Enum.UserInputType.MouseButton1 then
                 dragging = true
                 dragstart = input.Position
                 startpos = frame.Position
                 input.Changed:Connect(function()
                     if input.UserInputState == Enum.UserInputState.End then
                         dragging = false
+                        if settingkey then
+                            local pos = frame.Position
+                            ui.settings[settingkey] = {
+                                ScaleX = pos.X.Scale, OffsetX = pos.X.Offset,
+                                ScaleY = pos.Y.Scale, OffsetY = pos.Y.Offset
+                            }
+                            saveconfig()
+                        end
                     end
                 end)
             end
@@ -206,7 +220,7 @@ function Library:Create(cfg)
         end)
         
         UserInputService.InputChanged:Connect(function(input)
-            if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            if input == draginput and dragging then
                 local delta = input.Position - dragstart
                 frame.Position = UDim2.new(
                     startpos.X.Scale, startpos.X.Offset + delta.X,
@@ -216,29 +230,32 @@ function Library:Create(cfg)
         end)
     end
     
+    local wmpos = ui.settings.watermarkpos
     local watermark = Instance.new("TextLabel")
     watermark.Name = "Watermark"
     watermark.Parent = screengui
     watermark.BackgroundTransparency = 1
-    watermark.Position = UDim2.new(1, -10, 0, 10)
+    watermark.Position = UDim2.new(wmpos.ScaleX, wmpos.OffsetX, wmpos.ScaleY, wmpos.OffsetY)
     watermark.Size = UDim2.new(0, 200, 0, 30)
     watermark.AnchorPoint = Vector2.new(1, 0)
     watermark.Font = Enum.Font.GothamBold
     watermark.Text = windowname
-    watermark.TextSize = 24
+    watermark.TextSize = 24 * ui.settings.arrayscale
     watermark.TextStrokeTransparency = 0.5
     watermark.TextXAlignment = Enum.TextXAlignment.Right
     watermark.ZIndex = 10
     watermark.Active = true
     registertheme(watermark, "TextColor3")
-    makedraggable(watermark)
+    makedraggable(watermark, "watermarkpos")
     ui.watermark = watermark
     
+    local arrpos = ui.settings.arraypos
     local arrayframe = Instance.new("Frame")
+    arrayframe.Name = "ArrayList"
     arrayframe.Parent = screengui
     arrayframe.BackgroundTransparency = 1
-    arrayframe.Position = UDim2.new(1, -10, 0, 45)
-    arrayframe.Size = UDim2.new(0, 200, 1, 0)
+    arrayframe.Position = UDim2.new(arrpos.ScaleX, arrpos.OffsetX, arrpos.ScaleY, arrpos.OffsetY)
+    arrayframe.Size = UDim2.new(0, 200 * ui.settings.arrayscale, 1, 0)
     arrayframe.AnchorPoint = Vector2.new(1, 0)
     arrayframe.ZIndex = 1
     arrayframe.Active = true
@@ -247,8 +264,8 @@ function Library:Create(cfg)
     arraylayout.Parent = arrayframe
     arraylayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
     arraylayout.SortOrder = Enum.SortOrder.LayoutOrder
-    arraylayout.Padding = UDim.new(0, 4)
-    makedraggable(arrayframe)
+    arraylayout.Padding = UDim.new(0, 2)
+    makedraggable(arrayframe, "arraypos")
     
     local function updatearray()
         if not ui.settings.arraylistenabled then
@@ -258,7 +275,7 @@ function Library:Create(cfg)
             return
         end
         
-        local scale = ui.settings.arrayscale
+        local scale = ui.settings.arrayscale or 1.0
         arrayframe.Size = UDim2.new(0, 200 * scale, 1, 0)
         watermark.TextSize = 24 * scale
         
@@ -303,7 +320,7 @@ function Library:Create(cfg)
                 shadow.TextColor3 = Color3.new(0, 0, 0)
                 shadow.TextTransparency = 1
                 shadow.Size = UDim2.new(1, 0, 1, 0)
-                shadow.Position = UDim2.new(0, 0.5, 0, 0.5)
+                shadow.Position = UDim2.new(0, 1 * scale, 0, 1 * scale)
                 shadow.TextXAlignment = Enum.TextXAlignment.Right
                 shadow.ZIndex = 10
                 
@@ -326,15 +343,15 @@ function Library:Create(cfg)
                 bar.BackgroundColor3 = ui.settings.themecolor
                 bar.BackgroundTransparency = 1
                 bar.BorderSizePixel = 0
-                bar.Size = UDim2.new(0, 2, 1, 0)
-                bar.Position = UDim2.new(1, 2, 0, 0)
+                bar.Size = UDim2.new(0, 2 * scale, 1, 0)
+                bar.Position = UDim2.new(1, 2 * scale, 0, 0)
                 bar.ZIndex = 12
                 
-                local tween = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-                TweenService:Create(container, tween, {Size = UDim2.new(1, 0, 0, 20 * scale)}):Play()
-                TweenService:Create(shadow, tween, {TextTransparency = 0.5}):Play()
-                TweenService:Create(main, tween, {TextTransparency = 0}):Play()
-                TweenService:Create(bar, tween, {BackgroundTransparency = 0}):Play()
+                local tweeninfo = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+                TweenService:Create(container, tweeninfo, {Size = UDim2.new(1, 0, 0, 20 * scale)}):Play()
+                TweenService:Create(shadow, tweeninfo, {TextTransparency = 0.5}):Play()
+                TweenService:Create(main, tweeninfo, {TextTransparency = 0}):Play()
+                TweenService:Create(bar, tweeninfo, {BackgroundTransparency = 0}):Play()
             end
         end
         
@@ -343,13 +360,13 @@ function Library:Create(cfg)
             local s = frame:FindFirstChild("Shadow")
             local m = frame:FindFirstChild("Main")
             local b = frame:FindFirstChild("Bar")
-            local tween = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-            if s then TweenService:Create(s, tween, {TextTransparency = 1}):Play() end
-            if m then TweenService:Create(m, tween, {TextTransparency = 1}):Play() end
-            if b then TweenService:Create(b, tween, {BackgroundTransparency = 1}):Play() end
-            local t = TweenService:Create(frame, tween, {Size = UDim2.new(1, 0, 0, 0)})
+            local tweeninfo = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+            if s then TweenService:Create(s, tweeninfo, {TextTransparency = 1}):Play() end
+            if m then TweenService:Create(m, tweeninfo, {TextTransparency = 1}):Play() end
+            if b then TweenService:Create(b, tweeninfo, {BackgroundTransparency = 1}):Play() end
+            local t = TweenService:Create(frame, tweeninfo, {Size = UDim2.new(1, 0, 0, 0)})
             t:Play()
-            t.Completed:Connect(function() frame:Destroy() end)
+            t.Completed:Connect(function() if frame and frame.Parent then frame:Destroy() end end)
         end
     end
     
@@ -358,7 +375,9 @@ function Library:Create(cfg)
         local h, s, v = ui.settings.themecolor:ToHSV()
         local frames = {}
         for _, c in pairs(arrayframe:GetChildren()) do
-            if c:IsA("Frame") then table.insert(frames, c) end
+            if c:IsA("Frame") and not c.Name:find("_Removing") then 
+                table.insert(frames, c) 
+            end
         end
         table.sort(frames, function(a, b) return a.LayoutOrder < b.LayoutOrder end)
         
@@ -367,7 +386,8 @@ function Library:Create(cfg)
                 local main = container:FindFirstChild("Main")
                 local bar = container:FindFirstChild("Bar")
                 if main and bar then
-                    local newv = math.clamp(v - (i - 1) * 0.05, 0.3, 1)
+                    local brightnessdecrease = (i - 1) * 0.05
+                    local newv = math.clamp(v - brightnessdecrease, 0.3, 1)
                     local color = Color3.fromHSV(h, s, newv)
                     main.TextColor3 = color
                     bar.BackgroundColor3 = color
@@ -460,9 +480,11 @@ function Library:Create(cfg)
         }
         
         if ui.savedconfig[name] then
-            moduledata.Enabled = ui.savedconfig[name].Enabled
+            moduledata.Enabled = ui.savedconfig[name].Enabled or false
             if ui.savedconfig[name].Key then
-                moduledata.Key = Enum.KeyCode[ui.savedconfig[name].Key]
+                pcall(function()
+                    moduledata.Key = Enum.KeyCode[ui.savedconfig[name].Key]
+                end)
             end
         end
         
@@ -590,14 +612,14 @@ function Library:Create(cfg)
             end
             
             slidebg.MouseButton1Down:Connect(function() dragging = true end)
-            UserInputService.InputEnded:Connect(function(i)
+            trackconn(UserInputService.InputEnded:Connect(function(i)
                 if i.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
-            end)
-            UserInputService.InputChanged:Connect(function(i)
+            end))
+            trackconn(UserInputService.InputChanged:Connect(function(i)
                 if dragging and i.UserInputType == Enum.UserInputType.MouseMovement then
                     updateslider(i)
                 end
-            end)
+            end))
             
             updateheight()
         end
@@ -704,16 +726,17 @@ function Library:Create(cfg)
             if not table.find(ui.activemodules, moduledata) then
                 table.insert(ui.activemodules, moduledata)
             end
+            updatearray()
             if callback then task.spawn(function() callback(true) end) end
         end
         
         btn.MouseButton1Click:Connect(function() moduledata:Toggle() end)
         
-        UserInputService.InputBegan:Connect(function(input, gp)
-            if not gp and input.KeyCode == moduledata.Key and not binding then
+        trackconn(UserInputService.InputBegan:Connect(function(input, gp)
+            if not gp and moduledata.Key and input.KeyCode == moduledata.Key and not binding then
                 moduledata:Toggle()
             end
-        end)
+        end))
         
         ui.modules[name] = moduledata
         return moduledata
@@ -724,12 +747,29 @@ function Library:Create(cfg)
         updatetheme()
     end
     
+    function ui:ToggleArrayList(state)
+        ui.settings.arraylistenabled = state
+        updatearray()
+        saveconfig()
+    end
+    
+    function ui:ToggleRainbow(state)
+        ui.settings.rainbowarray = state
+        saveconfig()
+    end
+    
+    function ui:SetScale(scale)
+        ui.settings.arrayscale = scale
+        updatearray()
+        saveconfig()
+    end
+    
     function ui:Destroy()
         for _, conn in pairs(ui.connections) do
             if conn then pcall(function() conn:Disconnect() end) end
         end
-        blur:Destroy()
-        screengui:Destroy()
+        if blur then blur:Destroy() end
+        if screengui then screengui:Destroy() end
     end
     
     trackconn(UserInputService.InputBegan:Connect(function(i, gp)
@@ -738,6 +778,8 @@ function Library:Create(cfg)
             for _, cat in pairs(ui.categories) do
                 cat.frame.Visible = ui.open
             end
+            watermark.Visible = ui.open
+            arrayframe.Visible = true
             updateblur()
         end
     end))
