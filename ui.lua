@@ -7,7 +7,6 @@ local TweenService = game:GetService("TweenService")
 local CoreGui = game:GetService("CoreGui")
 local Lighting = game:GetService("Lighting")
 local HttpService = game:GetService("HttpService")
-
 local LocalPlayer = Players.LocalPlayer
 
 function Library:Create(cfg)
@@ -15,11 +14,11 @@ function Library:Create(cfg)
     local windowname = config.Name or "UI Library"
     local togglekey = config.ToggleKey or Enum.KeyCode.RightShift
     local configname = config.ConfigName or "UILib_Config.json"
-    
+
     if getgenv().UI_Loaded then
         getgenv().UI_Loaded:Destroy()
     end
-    
+
     local ui = {}
     ui.modules = {}
     ui.activemodules = {}
@@ -27,7 +26,6 @@ function Library:Create(cfg)
     ui.connections = {}
     ui.open = true
     ui.categories = {}
-    
     ui.settings = {
         themecolor = config.ThemeColor or Color3.fromRGB(255, 0, 0),
         rgb = config.RGB or {R = 255, G = 0, B = 0},
@@ -39,9 +37,9 @@ function Library:Create(cfg)
         watermarkpos = {ScaleX = 1, OffsetX = -10, ScaleY = 0, OffsetY = 10},
         categorypos = {}
     }
-    
+
     ui.savedconfig = {}
-    
+
     local function loadconfig()
         pcall(function()
             if isfile and isfile(configname) then
@@ -60,7 +58,7 @@ function Library:Create(cfg)
             end
         end)
     end
-    
+
     local function saveconfig()
         pcall(function()
             if writefile then
@@ -78,19 +76,28 @@ function Library:Create(cfg)
             end
         end)
     end
-    
+
     loadconfig()
-    
+
     local function trackconn(conn)
         table.insert(ui.connections, conn)
         return conn
     end
-    
+
     local function registertheme(obj, prop)
         table.insert(ui.themeobjects, {Object = obj, Property = prop})
         obj[prop] = ui.settings.themecolor
     end
-    
+
+    local function unregistertheme(obj)
+        for i, item in pairs(ui.themeobjects) do
+            if item.Object == obj then
+                table.remove(ui.themeobjects, i)
+                break
+            end
+        end
+    end
+
     local function updatetheme()
         ui.settings.themecolor = Color3.fromRGB(ui.settings.rgb.R, ui.settings.rgb.G, ui.settings.rgb.B)
         for _, item in pairs(ui.themeobjects) do
@@ -100,21 +107,21 @@ function Library:Create(cfg)
         end
         saveconfig()
     end
-    
+
     local screengui = Instance.new("ScreenGui")
     screengui.Name = windowname
     screengui.Parent = CoreGui
     screengui.ResetOnSpawn = false
     screengui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     ui.gui = screengui
-    
+
     local blur = Instance.new("BlurEffect")
     blur.Name = "UIBlur"
     blur.Size = 0
     blur.Parent = Lighting
     blur.Enabled = false
     ui.blur = blur
-    
+
     local function updateblur()
         if ui.settings.blurenabled and ui.open then
             blur.Enabled = true
@@ -123,7 +130,7 @@ function Library:Create(cfg)
             blur.Enabled = false
         end
     end
-    
+
     local notifcontainer = Instance.new("Frame")
     notifcontainer.Name = "Notifications"
     notifcontainer.Parent = screengui
@@ -132,13 +139,13 @@ function Library:Create(cfg)
     notifcontainer.Size = UDim2.new(0, 200, 1, 0)
     notifcontainer.AnchorPoint = Vector2.new(0, 1)
     notifcontainer.ZIndex = 100
-    
+
     local notiflayout = Instance.new("UIListLayout")
     notiflayout.Parent = notifcontainer
     notiflayout.SortOrder = Enum.SortOrder.LayoutOrder
     notiflayout.VerticalAlignment = Enum.VerticalAlignment.Bottom
     notiflayout.Padding = UDim.new(0, 5)
-    
+
     function ui:Notify(title, text, duration)
         local notif = Instance.new("Frame")
         notif.Parent = notifcontainer
@@ -146,14 +153,14 @@ function Library:Create(cfg)
         notif.BorderSizePixel = 0
         notif.Size = UDim2.new(1, 0, 0, 50)
         notif.BackgroundTransparency = 0.1
-        
+
         local line = Instance.new("Frame")
         line.Parent = notif
         line.BackgroundColor3 = ui.settings.themecolor
         line.BorderSizePixel = 0
         line.Size = UDim2.new(0, 2, 1, 0)
         registertheme(line, "BackgroundColor3")
-        
+
         local titlelbl = Instance.new("TextLabel")
         titlelbl.Parent = notif
         titlelbl.BackgroundTransparency = 1
@@ -165,7 +172,7 @@ function Library:Create(cfg)
         titlelbl.TextSize = 14
         titlelbl.TextXAlignment = Enum.TextXAlignment.Left
         registertheme(titlelbl, "TextColor3")
-        
+
         local textlbl = Instance.new("TextLabel")
         textlbl.Parent = notif
         textlbl.BackgroundTransparency = 1
@@ -176,10 +183,10 @@ function Library:Create(cfg)
         textlbl.TextColor3 = Color3.fromRGB(200, 200, 200)
         textlbl.TextSize = 12
         textlbl.TextXAlignment = Enum.TextXAlignment.Left
-        
+
         notif.Position = UDim2.new(1, 0, 0, 0)
         TweenService:Create(notif, TweenInfo.new(0.3), {Position = UDim2.new(0, 0, 0, 0)}):Play()
-        
+
         task.delay(duration or 3, function()
             if notif and notif.Parent then
                 TweenService:Create(notif, TweenInfo.new(0.3), {BackgroundTransparency = 1}):Play()
@@ -191,11 +198,11 @@ function Library:Create(cfg)
             end
         end)
     end
-    
+
     local function makedraggable(frame, settingkey)
         local dragging = false
         local dragstart, startpos, draginput
-        
+
         frame.InputBegan:Connect(function(input)
             if input.UserInputType == Enum.UserInputType.MouseButton1 then
                 dragging = true
@@ -216,13 +223,13 @@ function Library:Create(cfg)
                 end)
             end
         end)
-        
+
         frame.InputChanged:Connect(function(input)
             if input.UserInputType == Enum.UserInputType.MouseMovement then
                 draginput = input
             end
         end)
-        
+
         UserInputService.InputChanged:Connect(function(input)
             if input == draginput and dragging then
                 local delta = input.Position - dragstart
@@ -233,11 +240,11 @@ function Library:Create(cfg)
             end
         end)
     end
-    
+
     local function makecategorydraggable(frame, catname)
         local dragging = false
         local dragstart, startpos, draginput
-        
+
         frame.InputBegan:Connect(function(input)
             if input.UserInputType == Enum.UserInputType.MouseButton1 then
                 dragging = true
@@ -256,13 +263,13 @@ function Library:Create(cfg)
                 end)
             end
         end)
-        
+
         frame.InputChanged:Connect(function(input)
             if input.UserInputType == Enum.UserInputType.MouseMovement then
                 draginput = input
             end
         end)
-        
+
         UserInputService.InputChanged:Connect(function(input)
             if input == draginput and dragging then
                 local delta = input.Position - dragstart
@@ -273,7 +280,7 @@ function Library:Create(cfg)
             end
         end)
     end
-    
+
     local wmpos = ui.settings.watermarkpos
     local watermark = Instance.new("TextLabel")
     watermark.Name = "Watermark"
@@ -292,7 +299,7 @@ function Library:Create(cfg)
     registertheme(watermark, "TextColor3")
     makedraggable(watermark, "watermarkpos")
     ui.watermark = watermark
-    
+
     local arrpos = ui.settings.arraypos
     local arrayframe = Instance.new("Frame")
     arrayframe.Name = "ArrayList"
@@ -303,14 +310,14 @@ function Library:Create(cfg)
     arrayframe.AnchorPoint = Vector2.new(1, 0)
     arrayframe.ZIndex = 1
     arrayframe.Active = true
-    
+
     local arraylayout = Instance.new("UIListLayout")
     arraylayout.Parent = arrayframe
     arraylayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
     arraylayout.SortOrder = Enum.SortOrder.LayoutOrder
     arraylayout.Padding = UDim.new(0, 2)
     makedraggable(arrayframe, "arraypos")
-    
+
     local function updatearray()
         if not ui.settings.arraylistenabled then
             for _, v in pairs(arrayframe:GetChildren()) do
@@ -318,27 +325,26 @@ function Library:Create(cfg)
             end
             return
         end
-        
+
         local scale = ui.settings.arrayscale or 1.0
         arrayframe.Size = UDim2.new(0, 200 * scale, 1, 0)
         watermark.TextSize = 24 * scale
-        
+
         table.sort(ui.activemodules, function(a, b)
             local ta = a.Name .. (a.Suffix and " ["..a.Suffix.."]" or "")
             local tb = b.Name .. (b.Suffix and " ["..b.Suffix.."]" or "")
             if #ta == #tb then return ta < tb end
             return #ta > #tb
         end)
-        
+
         local existing = {}
         for _, c in pairs(arrayframe:GetChildren()) do
             if c:IsA("Frame") then existing[c.Name] = c end
         end
-        
+
         for i, mod in ipairs(ui.activemodules) do
             local txt = mod.Name .. (mod.Suffix and " ["..mod.Suffix.."]" or "")
             local frame = existing[mod.Name]
-            
             if frame then
                 frame.LayoutOrder = i
                 local s = frame:FindFirstChild("Shadow")
@@ -353,7 +359,7 @@ function Library:Create(cfg)
                 container.BackgroundTransparency = 1
                 container.LayoutOrder = i
                 container.Size = UDim2.new(1, 0, 0, 0)
-                
+
                 local shadow = Instance.new("TextLabel")
                 shadow.Name = "Shadow"
                 shadow.Parent = container
@@ -367,7 +373,7 @@ function Library:Create(cfg)
                 shadow.Position = UDim2.new(0, 1 * scale, 0, 1 * scale)
                 shadow.TextXAlignment = Enum.TextXAlignment.Right
                 shadow.ZIndex = 10
-                
+
                 local main = Instance.new("TextLabel")
                 main.Name = "Main"
                 main.Parent = container
@@ -380,7 +386,7 @@ function Library:Create(cfg)
                 main.Size = UDim2.new(1, 0, 1, 0)
                 main.TextXAlignment = Enum.TextXAlignment.Right
                 main.ZIndex = 11
-                
+
                 local bar = Instance.new("Frame")
                 bar.Name = "Bar"
                 bar.Parent = container
@@ -390,7 +396,7 @@ function Library:Create(cfg)
                 bar.Size = UDim2.new(0, 2 * scale, 1, 0)
                 bar.Position = UDim2.new(1, 2 * scale, 0, 0)
                 bar.ZIndex = 12
-                
+
                 local tweeninfo = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
                 TweenService:Create(container, tweeninfo, {Size = UDim2.new(1, 0, 0, 20 * scale)}):Play()
                 TweenService:Create(shadow, tweeninfo, {TextTransparency = 0.5}):Play()
@@ -398,7 +404,7 @@ function Library:Create(cfg)
                 TweenService:Create(bar, tweeninfo, {BackgroundTransparency = 0}):Play()
             end
         end
-        
+
         for name, frame in pairs(existing) do
             frame.Name = frame.Name .. "_Removing"
             local s = frame:FindFirstChild("Shadow")
@@ -413,18 +419,17 @@ function Library:Create(cfg)
             t.Completed:Connect(function() if frame and frame.Parent then frame:Destroy() end end)
         end
     end
-    
+
     trackconn(RunService.RenderStepped:Connect(function()
         if not ui.settings.arraylistenabled then return end
         local h, s, v = ui.settings.themecolor:ToHSV()
         local frames = {}
         for _, c in pairs(arrayframe:GetChildren()) do
-            if c:IsA("Frame") and not c.Name:find("_Removing") then 
-                table.insert(frames, c) 
+            if c:IsA("Frame") and not c.Name:find("_Removing") then
+                table.insert(frames, c)
             end
         end
         table.sort(frames, function(a, b) return a.LayoutOrder < b.LayoutOrder end)
-        
         for i, container in ipairs(frames) do
             local main = container:FindFirstChild("Main")
             local bar = container:FindFirstChild("Bar")
@@ -437,10 +442,9 @@ function Library:Create(cfg)
             end
         end
     end))
-    
+
     function ui:CreateCategory(name, x)
         local savedpos = ui.settings.categorypos[name]
-        
         local frame = Instance.new("Frame")
         frame.Name = name .. "_Category"
         frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
@@ -454,7 +458,7 @@ function Library:Create(cfg)
         frame.Parent = screengui
         frame.ZIndex = 1
         frame.Active = true
-        
+
         local headerline = Instance.new("Frame")
         headerline.Name = "HeaderLine"
         headerline.Size = UDim2.new(1, 0, 0, 2)
@@ -463,7 +467,7 @@ function Library:Create(cfg)
         headerline.Parent = frame
         headerline.ZIndex = 2
         registertheme(headerline, "BackgroundColor3")
-        
+
         local title = Instance.new("TextLabel")
         title.Name = "Title"
         title.Text = name
@@ -474,28 +478,28 @@ function Library:Create(cfg)
         title.TextSize = 14
         title.Parent = frame
         title.ZIndex = 5
-        
+
         local container = Instance.new("Frame")
         container.Name = "Container"
         container.Position = UDim2.new(0, 0, 1, 0)
         container.Size = UDim2.new(1, 0, 0, 0)
         container.BackgroundTransparency = 1
         container.Parent = frame
-        
+
         local layout = Instance.new("UIListLayout")
         layout.Parent = container
         layout.SortOrder = Enum.SortOrder.LayoutOrder
-        
+
         makecategorydraggable(frame, name)
-        
+
         local cat = {frame = frame, container = container}
         ui.categories[name] = cat
         return cat
     end
-    
+
     function ui:CreateModule(category, name, callback, defaultkey, isbutton)
         local parent = category.container
-        
+
         if isbutton then
             local btn = Instance.new("TextButton")
             btn.Text = name
@@ -506,7 +510,6 @@ function Library:Create(cfg)
             btn.TextSize = 14
             btn.BorderSizePixel = 0
             btn.Parent = parent
-            
             btn.MouseButton1Click:Connect(function()
                 if callback then callback() end
                 btn.BackgroundColor3 = ui.settings.themecolor
@@ -515,14 +518,14 @@ function Library:Create(cfg)
             end)
             return nil
         end
-        
+
         local moduledata = {
             Enabled = false,
             Key = defaultkey,
             Name = name,
             Suffix = nil
         }
-        
+
         if ui.savedconfig[name] then
             moduledata.Enabled = ui.savedconfig[name].Enabled or false
             if ui.savedconfig[name].Key then
@@ -531,7 +534,7 @@ function Library:Create(cfg)
                 end)
             end
         end
-        
+
         local btn = Instance.new("TextButton")
         btn.Text = name
         btn.BackgroundColor3 = moduledata.Enabled and ui.settings.themecolor or Color3.fromRGB(35, 35, 35)
@@ -542,7 +545,7 @@ function Library:Create(cfg)
         btn.BorderSizePixel = 0
         btn.Parent = parent
         btn.ZIndex = 2
-        
+
         local settingsframe = Instance.new("Frame")
         settingsframe.Name = name .. "_Settings"
         settingsframe.Parent = parent
@@ -552,11 +555,11 @@ function Library:Create(cfg)
         settingsframe.Visible = false
         settingsframe.ClipsDescendants = true
         settingsframe.ZIndex = 3
-        
+
         local settingslayout = Instance.new("UIListLayout")
         settingslayout.Parent = settingsframe
         settingslayout.SortOrder = Enum.SortOrder.LayoutOrder
-        
+
         local function updateheight()
             if not settingsframe.Visible then return end
             local h = 0
@@ -565,7 +568,7 @@ function Library:Create(cfg)
             end
             settingsframe.Size = UDim2.new(1, 0, 0, h)
         end
-        
+
         local bindbtn = Instance.new("TextButton")
         bindbtn.Parent = settingsframe
         bindbtn.Size = UDim2.new(1, 0, 0, 20)
@@ -576,13 +579,12 @@ function Library:Create(cfg)
         bindbtn.Text = "Keybind: " .. (moduledata.Key and moduledata.Key.Name or "None")
         bindbtn.BorderSizePixel = 0
         bindbtn.ZIndex = 3
-        
+
         local binding = false
         bindbtn.MouseButton1Click:Connect(function()
             if binding then return end
             binding = true
             bindbtn.Text = "Press any key..."
-            
             local inputconn
             inputconn = UserInputService.InputBegan:Connect(function(input)
                 if input.UserInputType == Enum.UserInputType.Keyboard then
@@ -600,20 +602,20 @@ function Library:Create(cfg)
                 end
             end)
         end)
-        
+
         function moduledata:CreateSlider(sname, min, max, default, slidercallback)
             local savedval = default
             if ui.savedconfig[name] and ui.savedconfig[name].Sliders and ui.savedconfig[name].Sliders[sname] then
                 savedval = ui.savedconfig[name].Sliders[sname]
             end
-            
+
             local sliderframe = Instance.new("Frame")
             sliderframe.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
             sliderframe.Size = UDim2.new(1, 0, 0, 35)
             sliderframe.BorderSizePixel = 0
             sliderframe.Parent = settingsframe
             sliderframe.ZIndex = 3
-            
+
             local label = Instance.new("TextLabel")
             label.Text = sname .. ": " .. savedval
             label.Size = UDim2.new(1, 0, 0, 15)
@@ -623,7 +625,7 @@ function Library:Create(cfg)
             label.TextSize = 12
             label.Parent = sliderframe
             label.ZIndex = 3
-            
+
             local slidebg = Instance.new("TextButton")
             slidebg.Text = ""
             slidebg.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
@@ -632,16 +634,16 @@ function Library:Create(cfg)
             slidebg.BorderSizePixel = 0
             slidebg.Parent = sliderframe
             slidebg.ZIndex = 4
-            
+
             local fill = Instance.new("Frame")
             fill.Size = UDim2.new((savedval - min) / (max - min), 0, 1, 0)
             fill.BorderSizePixel = 0
             fill.Parent = slidebg
             fill.ZIndex = 5
             registertheme(fill, "BackgroundColor3")
-            
+
             if slidercallback then slidercallback(savedval) end
-            
+
             local dragging = false
             local function updateslider(input)
                 local pos = math.clamp((input.Position.X - slidebg.AbsolutePosition.X) / slidebg.AbsoluteSize.X, 0, 1)
@@ -654,7 +656,7 @@ function Library:Create(cfg)
                 saveconfig()
                 if slidercallback then slidercallback(val) end
             end
-            
+
             slidebg.MouseButton1Down:Connect(function() dragging = true end)
             trackconn(UserInputService.InputEnded:Connect(function(i)
                 if i.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
@@ -664,16 +666,82 @@ function Library:Create(cfg)
                     updateslider(i)
                 end
             end))
-            
             updateheight()
         end
-        
+
+        function moduledata:CreateSubToggle(tname, default, togglecallback)
+            local savedstate = default
+            if ui.savedconfig[name] and ui.savedconfig[name].SubToggles and ui.savedconfig[name].SubToggles[tname] ~= nil then
+                savedstate = ui.savedconfig[name].SubToggles[tname]
+            end
+
+            local togglebtn = Instance.new("TextButton")
+            togglebtn.Parent = settingsframe
+            togglebtn.Size = UDim2.new(1, 0, 0, 20)
+            togglebtn.BackgroundColor3 = savedstate and ui.settings.themecolor or Color3.fromRGB(30, 30, 30)
+            togglebtn.TextColor3 = savedstate and Color3.new(1, 1, 1) or Color3.fromRGB(200, 200, 200)
+            togglebtn.Font = Enum.Font.Gotham
+            togglebtn.TextSize = 12
+            togglebtn.Text = tname
+            togglebtn.BorderSizePixel = 0
+            togglebtn.ZIndex = 3
+
+            local currentstate = savedstate
+
+            local function updatevisual()
+                if currentstate then
+                    togglebtn.BackgroundColor3 = ui.settings.themecolor
+                    togglebtn.TextColor3 = Color3.new(1, 1, 1)
+                    local found = false
+                    for _, obj in pairs(ui.themeobjects) do
+                        if obj.Object == togglebtn then found = true break end
+                    end
+                    if not found then
+                        table.insert(ui.themeobjects, {Object = togglebtn, Property = "BackgroundColor3"})
+                    end
+                else
+                    togglebtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+                    togglebtn.TextColor3 = Color3.fromRGB(200, 200, 200)
+                    unregistertheme(togglebtn)
+                end
+            end
+
+            updatevisual()
+            if togglecallback then togglecallback(currentstate) end
+
+            togglebtn.MouseButton1Click:Connect(function()
+                currentstate = not currentstate
+                ui.savedconfig[name] = ui.savedconfig[name] or {}
+                ui.savedconfig[name].SubToggles = ui.savedconfig[name].SubToggles or {}
+                ui.savedconfig[name].SubToggles[tname] = currentstate
+                saveconfig()
+                updatevisual()
+                if togglecallback then togglecallback(currentstate) end
+            end)
+
+            updateheight()
+            return {
+                SetState = function(state)
+                    currentstate = state
+                    ui.savedconfig[name] = ui.savedconfig[name] or {}
+                    ui.savedconfig[name].SubToggles = ui.savedconfig[name].SubToggles or {}
+                    ui.savedconfig[name].SubToggles[tname] = currentstate
+                    saveconfig()
+                    updatevisual()
+                    if togglecallback then togglecallback(currentstate) end
+                end,
+                GetState = function()
+                    return currentstate
+                end
+            }
+        end
+
         function moduledata:CreateToggle(tname, options, defaultidx, togglecallback)
             local savedidx = defaultidx
             if ui.savedconfig[name] and ui.savedconfig[name].Toggles and ui.savedconfig[name].Toggles[tname] then
                 savedidx = ui.savedconfig[name].Toggles[tname]
             end
-            
+
             local togglebtn = Instance.new("TextButton")
             togglebtn.Parent = settingsframe
             togglebtn.Size = UDim2.new(1, 0, 0, 20)
@@ -683,7 +751,7 @@ function Library:Create(cfg)
             togglebtn.TextSize = 12
             togglebtn.BorderSizePixel = 0
             togglebtn.ZIndex = 3
-            
+
             local currentidx = savedidx or 1
             local function updatetext()
                 togglebtn.Text = tname .. ": " .. options[currentidx]
@@ -697,17 +765,16 @@ function Library:Create(cfg)
                     if moduledata.Enabled then updatearray() end
                 end
             end
+
             updatetext()
-            
             togglebtn.MouseButton1Click:Connect(function()
                 currentidx = currentidx + 1
                 if currentidx > #options then currentidx = 1 end
                 updatetext()
             end)
-            
             updateheight()
         end
-        
+
         btn.MouseButton2Click:Connect(function()
             settingsframe.Visible = not settingsframe.Visible
             if settingsframe.Visible then
@@ -716,15 +783,14 @@ function Library:Create(cfg)
                 settingsframe.Size = UDim2.new(1, 0, 0, 0)
             end
         end)
-        
+
         function moduledata:Toggle(state)
             if state == nil then state = not moduledata.Enabled end
             moduledata.Enabled = state
-            
             ui.savedconfig[name] = ui.savedconfig[name] or {}
             ui.savedconfig[name].Enabled = state
             saveconfig()
-            
+
             if state then
                 btn.BackgroundColor3 = ui.settings.themecolor
                 btn.TextColor3 = Color3.new(1, 1, 1)
@@ -754,11 +820,10 @@ function Library:Create(cfg)
                     end
                 end
             end
-            
             updatearray()
             if callback then callback(state) end
         end
-        
+
         if moduledata.Enabled then
             local found = false
             for _, obj in pairs(ui.themeobjects) do
@@ -773,36 +838,36 @@ function Library:Create(cfg)
             updatearray()
             if callback then task.spawn(function() callback(true) end) end
         end
-        
+
         btn.MouseButton1Click:Connect(function() moduledata:Toggle() end)
-        
+
         trackconn(UserInputService.InputBegan:Connect(function(input, gp)
             if not gp and moduledata.Key and input.KeyCode == moduledata.Key and not binding then
                 moduledata:Toggle()
             end
         end))
-        
+
         ui.modules[name] = moduledata
         return moduledata
     end
-    
+
     function ui:SetTheme(r, g, b)
         ui.settings.rgb = {R = r, G = g, B = b}
         updatetheme()
     end
-    
+
     function ui:ToggleArrayList(state)
         ui.settings.arraylistenabled = state
         updatearray()
         saveconfig()
     end
-    
+
     function ui:SetScale(scale)
         ui.settings.arrayscale = scale
         updatearray()
         saveconfig()
     end
-    
+
     function ui:ResetPositions()
         ui.settings.arraypos = {ScaleX = 1, OffsetX = -10, ScaleY = 0, OffsetY = 45}
         ui.settings.watermarkpos = {ScaleX = 1, OffsetX = -10, ScaleY = 0, OffsetY = 10}
@@ -816,7 +881,7 @@ function Library:Create(cfg)
         end
         saveconfig()
     end
-    
+
     function ui:Destroy()
         for _, conn in pairs(ui.connections) do
             if conn then pcall(function() conn:Disconnect() end) end
@@ -825,7 +890,7 @@ function Library:Create(cfg)
         if screengui then screengui:Destroy() end
         getgenv().UI_Loaded = nil
     end
-    
+
     trackconn(UserInputService.InputBegan:Connect(function(i, gp)
         if not gp and i.KeyCode == togglekey then
             ui.open = not ui.open
@@ -835,9 +900,8 @@ function Library:Create(cfg)
             updateblur()
         end
     end))
-    
+
     getgenv().UI_Loaded = ui
-    
     return ui
 end
 
