@@ -16,6 +16,10 @@ function Library:Create(cfg)
     local togglekey = config.ToggleKey or Enum.KeyCode.RightShift
     local configname = config.ConfigName or "UILib_Config.json"
     
+    if getgenv().UI_Loaded then
+        getgenv().UI_Loaded:Destroy()
+    end
+    
     local ui = {}
     ui.modules = {}
     ui.activemodules = {}
@@ -28,12 +32,13 @@ function Library:Create(cfg)
         themecolor = config.ThemeColor or Color3.fromRGB(255, 0, 0),
         rgb = config.RGB or {R = 255, G = 0, B = 0},
         arraylistenabled = true,
-        rainbowarray = false,
+        rainbowarray = true,
         blurenabled = false,
         blursize = 15,
         arrayscale = 1.0,
         arraypos = {ScaleX = 1, OffsetX = -10, ScaleY = 0, OffsetY = 45},
-        watermarkpos = {ScaleX = 1, OffsetX = -10, ScaleY = 0, OffsetY = 10}
+        watermarkpos = {ScaleX = 1, OffsetX = -10, ScaleY = 0, OffsetY = 10},
+        categorypos = {}
     }
     
     ui.savedconfig = {}
@@ -46,12 +51,13 @@ function Library:Create(cfg)
                     ui.settings.rgb = ui.savedconfig.Theme.RGB or ui.settings.rgb
                     ui.settings.themecolor = Color3.fromRGB(ui.settings.rgb.R, ui.settings.rgb.G, ui.settings.rgb.B)
                     ui.settings.arraylistenabled = ui.savedconfig.Theme.ArrayListEnabled ~= false
-                    ui.settings.rainbowarray = ui.savedconfig.Theme.RainbowArrayList or false
+                    ui.settings.rainbowarray = ui.savedconfig.Theme.RainbowArrayList ~= false
                     ui.settings.blurenabled = ui.savedconfig.Theme.BlurEnabled or false
                     ui.settings.blursize = ui.savedconfig.Theme.BlurSize or 15
                     ui.settings.arrayscale = ui.savedconfig.Theme.ArrayScale or 1.0
                     if ui.savedconfig.Theme.ArrayPos then ui.settings.arraypos = ui.savedconfig.Theme.ArrayPos end
                     if ui.savedconfig.Theme.WatermarkPos then ui.settings.watermarkpos = ui.savedconfig.Theme.WatermarkPos end
+                    if ui.savedconfig.Theme.CategoryPos then ui.settings.categorypos = ui.savedconfig.Theme.CategoryPos end
                 end
             end
         end)
@@ -68,7 +74,8 @@ function Library:Create(cfg)
                     BlurSize = ui.settings.blursize,
                     ArrayScale = ui.settings.arrayscale,
                     ArrayPos = ui.settings.arraypos,
-                    WatermarkPos = ui.settings.watermarkpos
+                    WatermarkPos = ui.settings.watermarkpos,
+                    CategoryPos = ui.settings.categorypos
                 }
                 writefile(configname, HttpService:JSONEncode(ui.savedconfig))
             end
@@ -208,6 +215,46 @@ function Library:Create(cfg)
                             }
                             saveconfig()
                         end
+                    end
+                end)
+            end
+        end)
+        
+        frame.InputChanged:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseMovement then
+                draginput = input
+            end
+        end)
+        
+        UserInputService.InputChanged:Connect(function(input)
+            if input == draginput and dragging then
+                local delta = input.Position - dragstart
+                frame.Position = UDim2.new(
+                    startpos.X.Scale, startpos.X.Offset + delta.X,
+                    startpos.Y.Scale, startpos.Y.Offset + delta.Y
+                )
+            end
+        end)
+    end
+    
+    local function makecategorydraggable(frame, catname)
+        local dragging = false
+        local dragstart, startpos, draginput
+        
+        frame.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                dragging = true
+                dragstart = input.Position
+                startpos = frame.Position
+                input.Changed:Connect(function()
+                    if input.UserInputState == Enum.UserInputState.End then
+                        dragging = false
+                        local pos = frame.Position
+                        ui.settings.categorypos[catname] = {
+                            ScaleX = pos.X.Scale, OffsetX = pos.X.Offset,
+                            ScaleY = pos.Y.Scale, OffsetY = pos.Y.Offset
+                        }
+                        saveconfig()
                     end
                 end)
             end
@@ -404,14 +451,21 @@ function Library:Create(cfg)
     end))
     
     function ui:CreateCategory(name, x)
+        local savedpos = ui.settings.categorypos[name]
+        
         local frame = Instance.new("Frame")
         frame.Name = name .. "_Category"
         frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
         frame.BorderSizePixel = 0
-        frame.Position = UDim2.new(0, x, 0, 50)
+        if savedpos then
+            frame.Position = UDim2.new(savedpos.ScaleX, savedpos.OffsetX, savedpos.ScaleY, savedpos.OffsetY)
+        else
+            frame.Position = UDim2.new(0, x, 0, 50)
+        end
         frame.Size = UDim2.new(0, 130, 0, 30)
         frame.Parent = screengui
         frame.ZIndex = 1
+        frame.Active = true
         
         local headerline = Instance.new("Frame")
         headerline.Name = "HeaderLine"
@@ -443,6 +497,8 @@ function Library:Create(cfg)
         local layout = Instance.new("UIListLayout")
         layout.Parent = container
         layout.SortOrder = Enum.SortOrder.LayoutOrder
+        
+        makecategorydraggable(frame, name)
         
         local cat = {frame = frame, container = container}
         ui.categories[name] = cat
@@ -764,12 +820,27 @@ function Library:Create(cfg)
         saveconfig()
     end
     
+    function ui:ResetPositions()
+        ui.settings.arraypos = {ScaleX = 1, OffsetX = -10, ScaleY = 0, OffsetY = 45}
+        ui.settings.watermarkpos = {ScaleX = 1, OffsetX = -10, ScaleY = 0, OffsetY = 10}
+        ui.settings.categorypos = {}
+        arrayframe.Position = UDim2.new(1, -10, 0, 45)
+        watermark.Position = UDim2.new(1, -10, 0, 10)
+        local xpos = 50
+        for name, cat in pairs(ui.categories) do
+            cat.frame.Position = UDim2.new(0, xpos, 0, 50)
+            xpos = xpos + 140
+        end
+        saveconfig()
+    end
+    
     function ui:Destroy()
         for _, conn in pairs(ui.connections) do
             if conn then pcall(function() conn:Disconnect() end) end
         end
         if blur then blur:Destroy() end
         if screengui then screengui:Destroy() end
+        getgenv().UI_Loaded = nil
     end
     
     trackconn(UserInputService.InputBegan:Connect(function(i, gp)
@@ -781,6 +852,8 @@ function Library:Create(cfg)
             updateblur()
         end
     end))
+    
+    getgenv().UI_Loaded = ui
     
     return ui
 end
