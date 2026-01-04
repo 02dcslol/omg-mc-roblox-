@@ -778,8 +778,6 @@ function Library:Create(cfg)
             for _, cat in pairs(ui.categories) do
                 cat.frame.Visible = ui.open
             end
-            watermark.Visible = ui.open
-            arrayframe.Visible = true
             updateblur()
         end
     end))
