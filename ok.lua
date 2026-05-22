@@ -1,11 +1,11 @@
 -- ============================================================
 -- AUTOCHEAT — full loop, survives rejoin via queue_on_teleport
--- Pastebin: https://pastebin.com/raw/ACRvJ3zT
 -- ============================================================
 
 if not game:IsLoaded() then game.Loaded:Wait() end
 task.wait(4)
-local SCRIPT_SOURCE = [[loadstring(game:HttpGet("https://raw.githubusercontent.com/02dcslol/omg-mc-roblox-/refs/heads/main/ok.lua"))()]]
+
+local SCRIPT_SOURCE = [[loadstring(game:HttpGet("https://raw.githubusercontent.com/02dcslol/omg-mc-roblox-/refs/heads/main/ok.lua?cb="..tick()))()]]
 
 local Players = game:GetService("Players")
 local RS = game:GetService("ReplicatedStorage")
@@ -21,6 +21,7 @@ local SPACING = 0.005
 local REPLICATION_WAIT = 0.15
 local MAX_WAIT_FOR_DEATH = 5
 local MIN_SCORE = 50
+local MIN_SERVER_PLAYERS = 8     -- only hop to servers with at least this many players
 local SCAN_DELAY_AFTER_JOIN = 4
 local LOOP_DELAY = 2
 local HOP_DELAY = 2
@@ -28,13 +29,13 @@ local MAX_KILLS_BEFORE_HOP = 3
 
 -- ============ GUARD (per-server, not persistent) ============
 local now = tick()
-local lastBoot = getgenv().__autocheat_last_boot or 0
+local lastBoot = rawget(getgenv(), "__autocheat_last_boot") or 0
 if (now - lastBoot) < 5 then
     warn("[AutoCheat] booted <5s ago, abort duplicate")
     return
 end
 getgenv().__autocheat_last_boot = now
-getgenv().__autocheat_running = true
+getgenv().__autocheat_running = nil
 print("[AutoCheat] booting on PlaceId", game.PlaceId, "JobId", game.JobId)
 
 -- ============ QUEUE-ON-TELEPORT ============
@@ -183,8 +184,8 @@ local function serverHop()
     queueSelf()
     local placeId = game.PlaceId
     local currentJobId = game.JobId
-    print("[Hop] searching new server")
-    local url = "https://games.roblox.com/v1/games/"..placeId.."/servers/Public?sortOrder=Asc&limit=100"
+    print("[Hop] searching new server (populated)")
+    local url = "https://games.roblox.com/v1/games/"..placeId.."/servers/Public?sortOrder=Desc&limit=100"
     local success, raw = pcall(function()
         if syn and syn.request then return syn.request({Url=url, Method="GET"}).Body
         elseif http_request then return http_request({Url=url, Method="GET"}).Body
@@ -202,19 +203,39 @@ local function serverHop()
         TeleportService:Teleport(placeId, LP)
         return
     end
+
+    -- Filter: not current, has room, well-populated
     local candidates = {}
     for _, srv in ipairs(data.data) do
-        if srv.id ~= currentJobId and srv.playing < srv.maxPlayers then
+        if srv.id ~= currentJobId
+           and srv.playing < srv.maxPlayers
+           and srv.playing >= MIN_SERVER_PLAYERS then
             table.insert(candidates, srv)
         end
     end
-    print("[Hop] "..#candidates.." available servers")
+    -- Sort by most populated first
+    table.sort(candidates, function(a, b) return a.playing > b.playing end)
+    print("[Hop] "..#candidates.." populated servers (>= "..MIN_SERVER_PLAYERS.." players)")
+
+    -- If none populated enough, relax the filter
+    if #candidates == 0 then
+        for _, srv in ipairs(data.data) do
+            if srv.id ~= currentJobId and srv.playing < srv.maxPlayers then
+                table.insert(candidates, srv)
+            end
+        end
+        table.sort(candidates, function(a, b) return a.playing > b.playing end)
+        print("[Hop] relaxed filter, "..#candidates.." servers available")
+    end
+
     if #candidates == 0 then
         TeleportService:Teleport(placeId, LP)
         return
     end
-    local pick = candidates[math.random(1, math.min(#candidates, 20))]
-    print("[Hop] -> "..pick.id)
+
+    -- Pick randomly from the top 10 most populated (spreads load, avoids retry collisions)
+    local pick = candidates[math.random(1, math.min(#candidates, 10))]
+    print(string.format("[Hop] -> %s (%d/%d players)", pick.id, pick.playing, pick.maxPlayers))
     pcall(function() TeleportService:TeleportToPlaceInstance(placeId, pick.id, LP) end)
 end
 
