@@ -24,11 +24,14 @@ local LOOP_DELAY = 2
 local HOP_DELAY = 2
 local MAX_KILLS_BEFORE_HOP = 3
 
--- ============ GUARD ============
-if getgenv().__autocheat_running then
-    warn("[AutoCheat] already running, abort")
+-- ============ GUARD (per-server, not persistent) ============
+local now = tick()
+local lastBoot = getgenv().__autocheat_last_boot or 0
+if (now - lastBoot) < 5 then
+    warn("[AutoCheat] booted <5s ago, abort duplicate")
     return
 end
+getgenv().__autocheat_last_boot = now
 getgenv().__autocheat_running = true
 print("[AutoCheat] booting on PlaceId", game.PlaceId, "JobId", game.JobId)
 
