@@ -3,7 +3,7 @@
 -- Pastebin: https://pastebin.com/raw/ACRvJ3zT
 -- ============================================================
 
-local SCRIPT_SOURCE = [[loadstring(game:HttpGet("https://pastebin.com/raw/ACRvJ3zT"))()]]
+local SCRIPT_SOURCE = [[loadstring(game:HttpGet("https://raw.githubusercontent.com/02dcslol/omg-mc-roblox-/refs/heads/main/ok.lua"))()]]
 
 local Players = game:GetService("Players")
 local RS = game:GetService("ReplicatedStorage")
