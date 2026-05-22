@@ -3,6 +3,8 @@
 -- Pastebin: https://pastebin.com/raw/ACRvJ3zT
 -- ============================================================
 
+if not game:IsLoaded() then game.Loaded:Wait() end
+task.wait(4)
 local SCRIPT_SOURCE = [[loadstring(game:HttpGet("https://raw.githubusercontent.com/02dcslol/omg-mc-roblox-/refs/heads/main/ok.lua"))()]]
 
 local Players = game:GetService("Players")
