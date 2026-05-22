@@ -68,21 +68,29 @@ local function autoJoin()
     local pg = LP:WaitForChild("PlayerGui", 30)
     local msg = pg:WaitForChild("MasterScreenGui", 30)
     if not msg then return end
-    task.wait(1)
 
-    local a = pcall(function()
-        local GameState = require(RS.Client.States.GameState)
-        GameState.setTitleScreenWindow(nil)
-    end)
-    local b = pcall(function()
-        local PlayersSystem = require(RS.Systems.PlayersSystem)
-        PlayersSystem.client_sendRespawnRequest()
-    end)
-    print("[AutoJoin] module-calls A=", a, "B=", b)
+    -- Wait extra time for full client init on rejoin
+    task.wait(3)
 
-    task.wait(1.5)
-    if not LP.Character then
-        print("[AutoJoin] no char yet, clicking PlayButton via VIM")
+    local attempts = 0
+    while not LP.Character and attempts < 10 do
+        attempts = attempts + 1
+        print("[AutoJoin] attempt "..attempts)
+
+        -- Try module calls
+        pcall(function()
+            local GameState = require(RS.Client.States.GameState)
+            GameState.setTitleScreenWindow(nil)
+        end)
+        pcall(function()
+            local PlayersSystem = require(RS.Systems.PlayersSystem)
+            PlayersSystem.client_sendRespawnRequest()
+        end)
+
+        task.wait(1.5)
+        if LP.Character then break end
+
+        -- Fallback: click Play button via VIM
         local btn = msg:FindFirstChild("TitleScreen")
         if btn then btn = btn:FindFirstChild("Worlds") end
         if btn then btn = btn:FindFirstChild("PrototypeWorld") end
@@ -93,9 +101,15 @@ local function autoJoin()
             task.wait(0.05)
             VirtualInputManager:SendMouseButtonEvent(pos.X, pos.Y, 0, false, game, 0)
             print("[AutoJoin] VIM click at", pos.X, pos.Y)
-        else
-            print("[AutoJoin] PlayButton not found / not rendered")
         end
+
+        task.wait(2)
+    end
+
+    if LP.Character then
+        print("[AutoJoin] joined after "..attempts.." attempts")
+    else
+        warn("[AutoJoin] FAILED after "..attempts.." attempts")
     end
 end
 
